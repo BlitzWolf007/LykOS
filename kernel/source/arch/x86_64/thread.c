@@ -66,16 +66,15 @@ extern void __x86_64_thread_userspace_fork_entry();
 
 extern __attribute__((naked)) void __thread_context_switch(arch_thread_context_t *new, arch_thread_context_t *old);
 
-void arch_thread_context_init(arch_thread_context_t *context, vm_addrspace_t *as, bool user, uintptr_t entry)
+void arch_thread_context_init(arch_thread_context_t *context,
+                              vm_addrspace_t *as, bool user, uintptr_t entry,
+                              size_t stack_size, char **argv, char **envp)
 {
     context->self = context;
     context->fs = context->gs = 0;
 
     if (user)
     {
-        char *argv[] = { "test", NULL };
-        char *envp[] = { NULL };
-
         context->kernel_stack = pm_alloc(0)->addr + HHDM + ARCH_PAGE_GRAN;
         context->rsp = (context->kernel_stack - sizeof(arch_thread_init_stack_user_t)) & (~0xF); // align as 16
 
@@ -83,7 +82,7 @@ void arch_thread_context_init(arch_thread_context_t *context, vm_addrspace_t *as
         *init_stack = (arch_thread_init_stack_user_t) {
             .userspace_init = __x86_64_thread_userspace_init,
             .entry = entry,
-            .user_stack = x86_64_abi_stack_setup(as, ARCH_PAGE_GRAN * 8, argv, envp)
+            .user_stack = x86_64_abi_stack_setup(as, stack_size, argv, envp)
         };
     }
     else

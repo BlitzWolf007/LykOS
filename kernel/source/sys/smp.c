@@ -40,7 +40,7 @@ void smp_init()
     {
         struct limine_mp_info *mp_info = bootreq_mp.response->cpus[i];
 
-        thread_t *idle_thread = thread_create(idle_proc, (uintptr_t)&thread_idle_func);
+        thread_t *idle_thread = thread_create(idle_proc, (uintptr_t)&thread_idle_func, 4096, NULL, NULL);
         smp_cpu_t *cpu = heap_alloc(sizeof(smp_cpu_t));
         *cpu = (smp_cpu_t) {
             .id = i,

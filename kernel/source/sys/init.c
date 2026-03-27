@@ -116,7 +116,10 @@ proc_t *init_load(vnode_t *file)
         }
     }
 
-    thread_create(proc, ehdr.e_entry);
+    char *argv[] = { "test", NULL };
+    char *envp[] = { NULL };
+
+    thread_create(proc, ehdr.e_entry, 8 * 4096, argv, envp);
 
     return proc;
 }

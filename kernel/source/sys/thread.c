@@ -16,7 +16,7 @@ static inline uint32_t new_tid()
     return ret;
 }
 
-thread_t *thread_create(proc_t *proc, uintptr_t entry)
+thread_t *thread_create(proc_t *proc, uintptr_t entry, size_t stack_size, char **argv, char **envp)
 {
     thread_t *thread = heap_alloc(sizeof(thread_t));
     if (!thread)
@@ -32,7 +32,7 @@ thread_t *thread_create(proc_t *proc, uintptr_t entry)
     thread->sched_thread_list_node = LIST_NODE_INIT;
     thread->slock = SPINLOCK_INIT;
     thread->ref_count = 1;
-    arch_thread_context_init(&thread->context, proc->as, proc->user, entry);
+    arch_thread_context_init(&thread->context, proc->as, proc->user, entry, stack_size, argv, envp);
 
     spinlock_acquire(&proc->slock);
     list_append(&proc->threads, &thread->proc_thread_list_node);

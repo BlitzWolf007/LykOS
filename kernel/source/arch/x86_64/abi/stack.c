@@ -9,9 +9,9 @@ uintptr_t x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size, char **a
     uintptr_t stack_base;
     vm_map(
         as,
-        0x1000, stack_size,
+        0, stack_size,
         VM_PROTECTION_READ | VM_PROTECTION_WRITE,
-        VM_MAP_ANON | VM_MAP_POPULATE | VM_MAP_PRIVATE | VM_MAP_FIXED,
+        VM_MAP_ANON | VM_MAP_POPULATE | VM_MAP_PRIVATE,
         NULL, 0,
         &stack_base
     );
@@ -21,10 +21,10 @@ uintptr_t x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size, char **a
 
     // Count args and envs
     size_t argc = 0;
-    while (argv[argc])
+    while (argv && argv[argc])
         argc++;
     size_t envc = 0;
-    while (envp[envc])
+    while (envp && envp[envc])
         envc++;
 
     // Push strings and save their addr
