@@ -1,8 +1,9 @@
 #include "arch/thread.h"
-#include "assert.h"
-#include "sys/thread.h"
 
+#include "assert.h"
 #include "mm/heap.h"
+#include "sys/thread.h"
+#include "uapi/errno.h"
 
 static uint32_t next_tid = 0;
 static spinlock_t slock = SPINLOCK_INIT;
@@ -20,7 +21,7 @@ thread_t *thread_create(proc_t *proc, uintptr_t entry, size_t stack_size, char *
 {
     thread_t *thread = heap_alloc(sizeof(thread_t));
     if (!thread)
-        return NULL;
+        goto fail;
     thread->tid = new_tid();
     thread->owner = proc;
     thread->priority = 0;
@@ -32,13 +33,20 @@ thread_t *thread_create(proc_t *proc, uintptr_t entry, size_t stack_size, char *
     thread->sched_thread_list_node = LIST_NODE_INIT;
     thread->slock = SPINLOCK_INIT;
     thread->ref_count = 1;
-    arch_thread_context_init(&thread->context, proc->as, proc->user, entry, stack_size, argv, envp);
+    int err = arch_thread_context_init(&thread->context, proc->as, proc->user,
+                                       entry, stack_size, argv, envp);
+    if (err != EOK)
+        goto fail;
 
     spinlock_acquire(&proc->slock);
     list_append(&proc->threads, &thread->proc_thread_list_node);
     spinlock_release(&proc->slock);
 
     return thread;
+
+fail:
+    if (thread) heap_free(thread);
+    return NULL;
 }
 
 void thread_destroy(thread_t *thread)
@@ -54,7 +62,7 @@ thread_t *thread_duplicate(thread_t *thread)
     if (!new_thread)
         return NULL;
     if (!arch_thread_context_fork(&new_thread->context, &thread->context))
-        goto cleanup;
+        goto fail;
     new_thread->tid = new_tid();
     new_thread->owner = NULL; // To be set by caller.
 
@@ -71,7 +79,7 @@ thread_t *thread_duplicate(thread_t *thread)
 
     return new_thread;
 
-cleanup:
+fail:
     heap_free(new_thread);
 
     return NULL;

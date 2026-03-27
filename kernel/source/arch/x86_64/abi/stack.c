@@ -1,13 +1,15 @@
 #include "arch/x86_64/abi/stack.h"
 
+#include "log.h"
 #include "mm/heap.h"
 #include "mm/mm.h"
+#include "uapi/errno.h"
 #include "utils/string.h"
 
-uintptr_t x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size, char **argv, char **envp)
+int x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size, char **argv, char **envp, uint64_t *out_sp)
 {
-    uintptr_t stack_base;
-    vm_map(
+    uintptr_t stack_base = 0;
+    int err = vm_map(
         as,
         0, stack_size,
         VM_PROTECTION_READ | VM_PROTECTION_WRITE,
@@ -15,6 +17,8 @@ uintptr_t x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size, char **a
         NULL, 0,
         &stack_base
     );
+    if (err != EOK)
+        return err;
 
     uintptr_t sp = stack_base + stack_size;
     sp &= ~0xF;
@@ -74,5 +78,6 @@ uintptr_t x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size, char **a
     sp -= sizeof(uintptr_t);
     vm_copy_to_user(as, (uintptr_t)sp, &argc, sizeof(uintptr_t));
 
-    return sp;
+    *out_sp = sp;
+    return EOK;
 }
