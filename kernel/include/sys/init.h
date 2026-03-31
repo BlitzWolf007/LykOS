@@ -3,4 +3,4 @@
 #include "fs/vfs.h"
 #include "sys/proc.h"
 
-proc_t *init_load(vnode_t *file);
+int elf_load(vnode_t *, proc_t **out_proc);

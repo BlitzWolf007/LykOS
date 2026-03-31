@@ -76,8 +76,8 @@ static void load_init_proc()
     ||  init_elf_file->type != VREG)
         panic("Init process not found!");
 
-    proc_t *init_proc = init_load(init_elf_file);
-    if (init_proc)
+    proc_t *init_proc;
+    if (elf_load(init_elf_file, &init_proc) == EOK)
         sched_enqueue(LIST_GET_CONTAINER(init_proc->threads.head, thread_t, proc_thread_list_node));
     else
         panic("Failed to load init process!");
@@ -87,8 +87,8 @@ static void load_init_proc()
     ||  server_elf_file->type != VREG)
         panic("Server process not found!");
 
-    proc_t *server_proc = init_load(server_elf_file);
-    if (server_proc)
+    proc_t *server_proc;
+    if (elf_load(server_elf_file, &server_proc) == EOK)
         sched_enqueue(LIST_GET_CONTAINER(server_proc->threads.head, thread_t, proc_thread_list_node));
     else
         panic("Failed to load server process!");
@@ -98,8 +98,8 @@ static void load_init_proc()
     ||  client_elf_file->type != VREG)
         panic("Client process not found!");
 
-    proc_t *client_proc = init_load(client_elf_file);
-    if (client_proc)
+    proc_t *client_proc;
+    if (elf_load(client_elf_file, &client_proc) == EOK)
         sched_enqueue(LIST_GET_CONTAINER(client_proc->threads.head, thread_t, proc_thread_list_node));
     else
         panic("Failed to load client process!");

@@ -41,7 +41,7 @@ struct thread
     size_t ref_count;
 };
 
-thread_t *thread_create(proc_t *proc, uintptr_t entry, size_t stack_size, char **argv, char **envp);
+int thread_create(proc_t *proc, uintptr_t entry, size_t stack_size, char **argv, char **envp, thread_t **out_thread);
 
 void thread_destroy(thread_t *thread);
 

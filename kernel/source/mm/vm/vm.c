@@ -288,6 +288,27 @@ int vm_unmap(vm_addrspace_t *as, uintptr_t vaddr, size_t length)
     return ENOENT;
 }
 
+int vm_unmap_locked(vm_addrspace_t *as, uintptr_t vaddr, size_t length)
+{
+    FOREACH(n, as->segments)
+    {
+        vm_segment_t *seg = LIST_GET_CONTAINER(n, vm_segment_t, list_node);
+
+        if (seg->start == vaddr && seg->length == length)
+        {
+            for (size_t i = 0; i < seg->length; i += ARCH_PAGE_GRAN)
+                arch_paging_unmap_page(as->page_map, seg->start + i);
+
+            list_remove(&as->segments, n);
+            heap_free(seg);
+
+            return EOK;
+        }
+    }
+
+    return ENOENT;
+}
+
 /*
  * Memory allocation
  */
@@ -311,10 +332,12 @@ void *vm_alloc(size_t size)
 
 void vm_free(void *obj)
 {
+    // TODO: use a better algo here
+
     spinlock_acquire(&vm_kernel_as->slock);
 
     vm_segment_t *seg = find_seg(vm_kernel_as, (uintptr_t)obj);
-    vm_unmap(vm_kernel_as, (uintptr_t)obj, seg->length);
+    vm_unmap_locked(vm_kernel_as, (uintptr_t)obj, seg->length);
 
     spinlock_release(&vm_kernel_as->slock);
 }

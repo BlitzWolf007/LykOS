@@ -3,8 +3,8 @@ subdir('socket')
 subdir('syscalls')
 
 c_files += files(
+    'elf.c',
     'fd.c',
-    'init.c',
     'proc.c',
     'sched.c',
     'smp.c',
