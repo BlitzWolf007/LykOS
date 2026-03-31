@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static int elf_load_ph_load(vm_addrspace_t *as, vnode_t *file, Elf64_Phdr *ph)
+static int elf_load_ph(vm_addrspace_t *as, vnode_t *file, Elf64_Phdr *ph)
 {
     int err = EOK;
 
@@ -122,7 +122,7 @@ int elf_load(vnode_t *file, proc_t **out_proc)
         if (ph->p_type != PT_LOAD || ph->p_memsz == 0)
             continue;
 
-        err = elf_load_ph_load(proc->as, file, ph);
+        err = elf_load_ph(proc->as, file, ph);
         if (err != EOK)
             goto fail;
     }
