@@ -5,6 +5,7 @@
 #include "arch/misc.h"
 #include "arch/timer.h"
 #include "log.h"
+#include "sys/elf.h"
 #include "sys/sched.h"
 #include "uapi/errno.h"
 #include <stdint.h>
@@ -41,7 +42,7 @@ sys_ret_t syscall_get_pid()
 
 sys_ret_t syscall_get_ppid()
 {
-    return (sys_ret_t) {sys_curr_proc()->ppid, EOK};
+    return (sys_ret_t) {sys_curr_proc()->parent ? sys_curr_proc()->parent->pid : 0, EOK};
 }
 
 sys_ret_t syscall_get_tid()

@@ -12,4 +12,6 @@
  *
  * @return EOK on success, or an error code on failure.
  */
-int x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size, char **argv, char **envp, uint64_t *out_sp);
+int x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size,
+                           const char *const argv[], const char *const envp[],
+                           uint64_t *out_sp);

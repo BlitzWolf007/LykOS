@@ -17,7 +17,9 @@ static inline uint32_t new_tid()
     return ret;
 }
 
-int thread_create(proc_t *proc, uintptr_t entry, size_t stack_size, char **argv, char **envp, thread_t **out_thread)
+int thread_create(proc_t *proc, uintptr_t entry, size_t stack_size,
+                  const char *const argv[], const char *const envp[],
+                  thread_t **out_thread)
 {
     int err = EOK;
 

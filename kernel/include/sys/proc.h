@@ -23,7 +23,7 @@ proc_status_t;
 typedef struct proc
 {
     uint32_t pid;
-    uint32_t ppid;
+    struct proc *parent;
     char *name;
     bool user;
 
@@ -44,7 +44,10 @@ proc_t;
  * Create, destroy, and fork
  */
 
-proc_t *proc_create(const char *name, const char *cwd, bool user);
+proc_t *proc_create_kernel(const char *name);
+
+proc_t *proc_create_user(proc_t *parent, const char *path,
+                         const char *const argv[], const char *const envp[]);
 
 void proc_destroy(proc_t *proc);
 

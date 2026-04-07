@@ -6,7 +6,9 @@
 #include "uapi/errno.h"
 #include "utils/string.h"
 
-int x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size, char **argv, char **envp, uint64_t *out_sp)
+int x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size,
+                           const char *const argv[], const char *const envp[],
+                           uint64_t *out_sp)
 {
     uintptr_t stack_base = 0;
     int err = vm_map(

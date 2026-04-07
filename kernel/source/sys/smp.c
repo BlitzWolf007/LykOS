@@ -36,7 +36,7 @@ void smp_init()
     if (bootreq_mp.response == NULL)
         panic("Invalid SMP info provided by the bootloader!");
 
-    idle_proc = proc_create("System Idle Process", "/", false);
+    idle_proc = proc_create_kernel("System Idle Process");
 
     for (size_t i = 0; i < bootreq_mp.response->cpu_count; i++)
     {

@@ -4,8 +4,12 @@
 #include "log.h"
 #include "mm/heap.h"
 #include "mm/vm.h"
+#include "sys/elf.h"
 #include "sys/fd.h"
+#include "sys/sched.h"
 #include "sys/thread.h"
+#include "uapi/errno.h"
+#include "utils/container_of.h"
 #include "utils/list.h"
 #include "utils/string.h"
 
@@ -22,31 +26,24 @@ static inline uint32_t new_pid()
     return ret;
 }
 
-proc_t *proc_create(const char *name, const char *cwd, bool user)
+proc_t *proc_create_kernel(const char *name)
 {
     ASSERT(name);
-    ASSERT(cwd);
 
     proc_t *proc = heap_alloc(sizeof(proc_t));
     if (!proc)
         goto fail;
     proc->pid = new_pid();
-    proc->ppid = 0; // To be set by caller.
+    proc->parent = NULL;
     proc->name = strdup(name);
     if (!proc->name)
         goto fail;
-    proc->user = user;
+    proc->user = false;
     proc->status = PROC_STATE_NEW;
-    proc->as = user ? vm_addrspace_create() : vm_kernel_as;
-    if (user && !proc->as)
-        goto fail;
+    proc->as = vm_kernel_as;
     proc->threads = LIST_INIT;
-    proc->fd_table = fd_table_create();
-    if (!proc->fd_table)
-        goto fail;
-    proc->cwd = strdup(cwd);
-    if (!proc->cwd)
-        goto fail;
+    proc->fd_table = NULL;
+    proc->cwd = NULL;
     proc->proc_list_node = LIST_NODE_INIT;
     proc->slock = SPINLOCK_INIT;
     proc->ref_count = 1;
@@ -58,12 +55,60 @@ proc_t *proc_create(const char *name, const char *cwd, bool user)
     return proc;
 
 fail:
-    log(LOG_ERROR, "Failed to create process!");
+    log(LOG_ERROR, "Failed to create kernel process!");
 
     if (!proc) return NULL;
     if (proc->name) heap_free(proc->name);
-    if (user && proc->as) vm_addrspace_destroy(proc->as);
-    if (proc->fd_table) heap_free(proc->fd_table);
+    heap_free(proc);
+
+    return NULL;
+}
+
+proc_t *proc_create_user(proc_t *parent, const char *path,
+                         const char *const argv[], const char *const envp[])
+{
+    ASSERT(path && argv && envp);
+
+    proc_t *proc = heap_alloc(sizeof(proc_t));
+    if (!proc)
+        goto fail;
+    proc->pid = new_pid();
+    proc->parent = parent;
+    proc->name = NULL;
+    proc->user = true;
+    proc->status = PROC_STATE_NEW;
+    proc->as = vm_addrspace_create();
+    if (!proc->as)
+        goto fail;
+    proc->threads = LIST_INIT;
+    proc->fd_table = fd_table_create();
+    if (!proc->fd_table)
+        goto fail;
+    proc->cwd = parent ? strdup(parent->cwd) : strdup("/");
+    if (!proc->cwd)
+        goto fail;
+    proc->proc_list_node = LIST_NODE_INIT;
+    proc->slock = SPINLOCK_INIT;
+    proc->ref_count = 1;
+
+    if (elf_load(proc, path, argv, envp) != EOK)
+        goto fail;
+
+    spinlock_acquire(&slock);
+    list_append(&proc_list, &proc->proc_list_node);
+    spinlock_release(&slock);
+
+    ASSERT(proc->threads.head);
+    sched_enqueue(container_of(proc->threads.head, thread_t, proc_thread_list_node));
+
+    return proc;
+
+fail:
+    log(LOG_ERROR, "Failed to create user process!");
+
+    if (!proc) return NULL;
+    if (proc->as) vm_addrspace_destroy(proc->as);
+    if (proc->fd_table) fd_table_destroy(proc->fd_table);
     if (proc->cwd) heap_free(proc->cwd);
     heap_free(proc);
 
@@ -88,10 +133,14 @@ void proc_destroy(proc_t *proc)
     }
 
     // Free resources
-    heap_free((void *)proc->name);
-    vm_addrspace_destroy(proc->as);
-    fd_table_destroy(proc->fd_table);
-    heap_free((void *)proc->cwd);
+    if (proc->name)
+        heap_free((void *)proc->name);
+    if (proc->user)
+    {
+        vm_addrspace_destroy(proc->as);
+        fd_table_destroy(proc->fd_table);
+        heap_free((void *)proc->cwd);
+    }
 
     heap_free(proc);
 }
@@ -108,7 +157,7 @@ proc_t *proc_fork(proc_t *proc, thread_t *calling_thread)
     new_proc->name = strdup(proc->name);
     if (!new_proc->name)
         goto fail;
-    new_proc->ppid = proc->pid;
+    new_proc->parent = proc->parent;
     new_proc->user= proc->user;
     new_proc->status = PROC_STATE_NEW;
     new_proc->as = vm_addrspace_clone(proc->as);
@@ -133,7 +182,7 @@ proc_t *proc_fork(proc_t *proc, thread_t *calling_thread)
     list_append(&new_proc->threads, &new_thread->proc_thread_list_node);
 
     spinlock_acquire(&slock);
-    list_append(&proc_list, &proc->proc_list_node);
+    list_append(&proc_list, &new_proc->proc_list_node);
     spinlock_release(&slock);
 
     return new_proc;

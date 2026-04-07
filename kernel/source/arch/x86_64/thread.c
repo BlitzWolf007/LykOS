@@ -67,9 +67,10 @@ extern void __x86_64_thread_userspace_fork_entry();
 
 extern __attribute__((naked)) void __thread_context_switch(arch_thread_context_t *new, arch_thread_context_t *old);
 
-int arch_thread_context_init(arch_thread_context_t *context,
-                              vm_addrspace_t *as, bool user, uintptr_t entry,
-                              size_t stack_size, char **argv, char **envp)
+int arch_thread_context_init(arch_thread_context_t *context, vm_addrspace_t *as,
+                             bool user, uintptr_t entry, size_t stack_size,
+                             const char *const argv[],
+                             const char *const envp[])
 {
     int err = EOK;
 

@@ -1,6 +1,8 @@
-#include "sys/init.h"
+#include "sys/elf.h"
 
 #include "arch/types.h"
+#include "assert.h"
+#include "fs/vfs.h"
 #include "log.h"
 #include "mm/heap.h"
 #include "mm/mm.h"
@@ -75,14 +77,21 @@ static int elf_load_ph(vm_addrspace_t *as, vnode_t *file, Elf64_Phdr *ph)
     return EOK;
 }
 
-int elf_load(vnode_t *file, proc_t **out_proc)
+int elf_load(proc_t *proc, const char *path, const char *const argv[], const char *const envp[])
 {
+    ASSERT(proc);
+    ASSERT(proc->as && proc->as->segments.length == 0);
+    ASSERT(proc->threads.length == 0);
+
     log(LOG_INFO, "Loading ELF...");
 
-    *out_proc = NULL;
-
-    int err;
+    int err = EOK;
     uint64_t count;
+
+    vnode_t *file;
+    err = vfs_lookup(path, &file);
+    if (err != EOK)
+        return err;
 
     Elf64_Ehdr ehdr;
     err = vfs_read(file, &ehdr, 0, sizeof(Elf64_Ehdr), &count);
@@ -100,10 +109,6 @@ int elf_load(vnode_t *file, proc_t **out_proc)
     ||  ehdr.e_ident[EI_VERSION] != EV_CURRENT
     ||  ehdr.e_type              != ET_EXEC)
         return ENOEXEC;
-
-    proc_t *proc = proc_create(file->name, "/", true);
-    if (!proc)
-        return ENOMEM;
 
     Elf64_Phdr *ph_table = vm_alloc(ehdr.e_phentsize * ehdr.e_phnum);
     if (!ph_table)
@@ -127,20 +132,15 @@ int elf_load(vnode_t *file, proc_t **out_proc)
             goto fail;
     }
 
-    char *argv[] = { "test", NULL };
-    char *envp[] = { NULL };
-
     err = thread_create(proc, ehdr.e_entry, 8 * 4096, argv, envp, NULL);
     if (err != EOK)
         goto fail;
 
     vm_free(ph_table);
-    *out_proc = proc;
     return EOK;
 
 fail:
     if (ph_table) vm_free(ph_table);
     if (proc) proc_destroy(proc);
-    *out_proc = NULL;
     return err;
 }
