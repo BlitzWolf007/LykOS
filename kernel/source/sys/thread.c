@@ -1,7 +1,9 @@
 #include "arch/thread.h"
 
 #include "assert.h"
+#include "fs/vfs.h"
 #include "mm/heap.h"
+#include "mm/mm.h"
 #include "sys/thread.h"
 #include "uapi/errno.h"
 
@@ -17,20 +19,18 @@ static inline uint32_t new_tid()
     return ret;
 }
 
-int thread_create(proc_t *proc, uintptr_t entry, size_t stack_size,
-                  const char *const argv[], const char *const envp[],
-                  thread_t **out_thread)
+int thread_create_kernel(vm_addrspace_t *as, uintptr_t entry, size_t stack_size,
+                         thread_t **out_thread)
 {
+    ASSERT(as && out_thread);
+
     int err = EOK;
 
     thread_t *thread = heap_alloc(sizeof(thread_t));
     if (!thread)
-    {
-        err = ENOMEM;
-        goto fail;
-    }
+        return ENOMEM;
     thread->tid = new_tid();
-    thread->owner = proc;
+    thread->owner = NULL;
     thread->priority = 0;
     thread->status = THREAD_STATE_NEW;
     thread->last_ran = 0;
@@ -40,23 +40,54 @@ int thread_create(proc_t *proc, uintptr_t entry, size_t stack_size,
     thread->sched_thread_list_node = LIST_NODE_INIT;
     thread->slock = SPINLOCK_INIT;
     thread->ref_count = 1;
-    err = arch_thread_context_init(&thread->context, proc->as, proc->user,
-                                       entry, stack_size, argv, envp);
+    const char *argv[] = { "kernel", NULL };
+    const char *envp[] = { NULL };
+    err = arch_thread_context_init(&thread->context, as, false, entry,
+                                   stack_size, argv, envp);
     if (err != EOK)
-        goto fail;
+    {
+        heap_free(thread);
+        *out_thread = NULL;
+        return err;
+    }
 
-    spinlock_acquire(&proc->slock);
-    list_append(&proc->threads, &thread->proc_thread_list_node);
-    spinlock_release(&proc->slock);
-
-    if (out_thread)
-        *out_thread = thread;
+    *out_thread = thread;
     return EOK;
+}
 
-fail:
-    if (thread) heap_free(thread);
-    if (out_thread) *out_thread = NULL;
-    return err;
+int thread_create_user(vm_addrspace_t *as, uintptr_t entry, size_t stack_size,
+                       const char *const argv[], const char *const envp[],
+                       thread_t **out_thread)
+{
+    ASSERT(as && out_thread);
+
+    int err = EOK;
+
+    thread_t *thread = heap_alloc(sizeof(thread_t));
+    if (!thread)
+        return ENOMEM;
+    thread->tid = new_tid();
+    thread->owner = NULL;
+    thread->priority = 0;
+    thread->status = THREAD_STATE_NEW;
+    thread->last_ran = 0;
+    thread->sleep_until = 0;
+    thread->assigned_cpu = NULL;
+    thread->proc_thread_list_node = LIST_NODE_INIT;
+    thread->sched_thread_list_node = LIST_NODE_INIT;
+    thread->slock = SPINLOCK_INIT;
+    thread->ref_count = 1;
+    err = arch_thread_context_init(&thread->context, as, true, entry,
+                                   stack_size, argv, envp);
+    if (err != EOK)
+    {
+        heap_free(thread);
+        *out_thread = NULL;
+        return err;
+    }
+
+    *out_thread = thread;
+    return EOK;
 }
 
 void thread_destroy(thread_t *thread)

@@ -1,5 +1,5 @@
 #pragma once
 
-#include "sys/proc.h"
+#include "mm/vm.h"
 
-int elf_load(proc_t *proc, const char *path, const char *const argv[], const char *const envp[]);
+int elf_load(vm_addrspace_t *as, const char *path, void **out_entry, char **out_interpreter);

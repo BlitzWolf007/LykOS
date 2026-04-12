@@ -11,6 +11,7 @@
 #include "sys/thread.h"
 #include "uapi/errno.h"
 #include "utils/elf.h"
+#include "utils/list.h"
 #include "utils/math.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -77,11 +78,11 @@ static int elf_load_ph(vm_addrspace_t *as, vnode_t *file, Elf64_Phdr *ph)
     return EOK;
 }
 
-int elf_load(proc_t *proc, const char *path, const char *const argv[], const char *const envp[])
+int elf_load(vm_addrspace_t *as, const char *path, void **out_entry, char **out_interpreter)
 {
-    ASSERT(proc);
-    ASSERT(proc->as && proc->as->segments.length == 0);
-    ASSERT(proc->threads.length == 0);
+    ASSERT(as && as->segments.length == 0);
+    *out_entry = NULL;
+    *out_interpreter = NULL;
 
     log(LOG_INFO, "Loading ELF...");
 
@@ -112,13 +113,10 @@ int elf_load(proc_t *proc, const char *path, const char *const argv[], const cha
 
     Elf64_Phdr *ph_table = vm_alloc(ehdr.e_phentsize * ehdr.e_phnum);
     if (!ph_table)
-    {
-        proc_destroy(proc);
         return ENOMEM;
-    }
     err = vfs_read(file, ph_table, ehdr.e_phoff, ehdr.e_phentsize * ehdr.e_phnum, &count);
     if (err != EOK || count != ehdr.e_phentsize * ehdr.e_phnum)
-        goto fail;
+        return err;
 
     for (size_t i = 0; i < ehdr.e_phnum; i++)
     {
@@ -127,20 +125,18 @@ int elf_load(proc_t *proc, const char *path, const char *const argv[], const cha
         if (ph->p_type != PT_LOAD || ph->p_memsz == 0)
             continue;
 
-        err = elf_load_ph(proc->as, file, ph);
+        err = elf_load_ph(as, file, ph);
         if (err != EOK)
             goto fail;
     }
 
-    err = thread_create(proc, ehdr.e_entry, 8 * 4096, argv, envp, NULL);
-    if (err != EOK)
-        goto fail;
+    *out_entry = (void *)ehdr.e_entry;
+    // TODO: *out_interpreter =
 
     vm_free(ph_table);
     return EOK;
 
 fail:
-    if (ph_table) vm_free(ph_table);
-    if (proc) proc_destroy(proc);
+    // TODO: free loaded segments
     return err;
 }

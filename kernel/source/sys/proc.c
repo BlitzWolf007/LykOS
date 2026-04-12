@@ -12,6 +12,7 @@
 #include "utils/container_of.h"
 #include "utils/list.h"
 #include "utils/string.h"
+#include <string.h>
 
 static uint32_t next_pid = 0;
 static list_t proc_list = LIST_INIT;
@@ -33,6 +34,7 @@ proc_t *proc_create_kernel(const char *name)
     proc_t *proc = heap_alloc(sizeof(proc_t));
     if (!proc)
         goto fail;
+    memset(proc, 0, sizeof(proc_t));
     proc->pid = new_pid();
     proc->parent = NULL;
     proc->name = strdup(name);
@@ -64,14 +66,17 @@ fail:
     return NULL;
 }
 
-proc_t *proc_create_user(proc_t *parent, const char *path,
-                         const char *const argv[], const char *const envp[])
+int proc_create_user(proc_t *parent, const char *path, const char *const argv[],
+                     const char *const envp[], proc_t **out_proc)
 {
-    ASSERT(path && argv && envp);
+    ASSERT(parent && path && argv && envp && out_proc);
+
+    int err = EOK;
 
     proc_t *proc = heap_alloc(sizeof(proc_t));
     if (!proc)
         goto fail;
+    memset(proc, 0, sizeof(proc_t));
     proc->pid = new_pid();
     proc->parent = parent;
     proc->name = NULL;
@@ -91,28 +96,44 @@ proc_t *proc_create_user(proc_t *parent, const char *path,
     proc->slock = SPINLOCK_INIT;
     proc->ref_count = 1;
 
-    if (elf_load(proc, path, argv, envp) != EOK)
+    void *entry = NULL;
+    char *interpreter = NULL;
+    err = elf_load(proc->as, path, &entry, &interpreter);
+    if (err != EOK)
         goto fail;
+
+    thread_t *initial_thread = NULL;
+    err = thread_create_user(proc->as, (uintptr_t)entry, 8192, argv, envp,
+                             &initial_thread);
+    if (err != EOK)
+        goto fail;
+    initial_thread->owner = proc;
+    list_append(&proc->threads, &initial_thread->proc_thread_list_node);
 
     spinlock_acquire(&slock);
     list_append(&proc_list, &proc->proc_list_node);
     spinlock_release(&slock);
 
-    ASSERT(proc->threads.head);
-    sched_enqueue(container_of(proc->threads.head, thread_t, proc_thread_list_node));
+    sched_enqueue(initial_thread);
 
-    return proc;
+    *out_proc = proc;
+    return EOK;
 
 fail:
     log(LOG_ERROR, "Failed to create user process!");
 
-    if (!proc) return NULL;
+    if (!proc)
+    {
+        *out_proc = NULL;
+        return ENOMEM;
+    }
     if (proc->as) vm_addrspace_destroy(proc->as);
     if (proc->fd_table) fd_table_destroy(proc->fd_table);
     if (proc->cwd) heap_free(proc->cwd);
     heap_free(proc);
+    *out_proc = NULL;
 
-    return NULL;
+    return err;
 }
 
 void proc_destroy(proc_t *proc)
@@ -143,6 +164,51 @@ void proc_destroy(proc_t *proc)
     }
 
     heap_free(proc);
+}
+
+int proc_execve(proc_t *proc, const char *path,
+                const char *const argv[],
+                const char *const envp[])
+{
+    ASSERT(proc && path && argv && envp);
+
+    int err = EOK;
+
+    vm_addrspace_t *new_as = vm_addrspace_create();
+    if (!new_as)
+        return ENOMEM;
+
+    void *entry = NULL;
+    char *interpreter = NULL;
+    err = elf_load(new_as, path, &entry, &interpreter);
+    if (err != EOK)
+    {
+        vm_addrspace_destroy(new_as);
+        return err;
+    }
+
+    thread_t *initial_thread;
+    err = thread_create_user(new_as, (uintptr_t)entry, 8192, argv, envp, &initial_thread);
+    if (err != EOK)
+    {
+        vm_addrspace_destroy(new_as);
+        return err;
+    }
+    initial_thread->owner = proc;
+
+    while (!list_is_empty(&proc->threads))
+    {
+        list_node_t *n = list_pop_head(&proc->threads);
+        thread_t *t = LIST_GET_CONTAINER(n, thread_t, proc_thread_list_node);
+        thread_destroy(t);
+    }
+    vm_addrspace_destroy(proc->as);
+
+    proc->as = new_as;
+    list_append(&proc->threads, &initial_thread->proc_thread_list_node);
+    sched_enqueue(initial_thread);
+
+    return EOK;
 }
 
 proc_t *proc_fork(proc_t *proc, thread_t *calling_thread)

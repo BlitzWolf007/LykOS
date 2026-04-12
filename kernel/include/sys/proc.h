@@ -46,8 +46,8 @@ proc_t;
 
 proc_t *proc_create_kernel(const char *name);
 
-proc_t *proc_create_user(proc_t *parent, const char *path,
-                         const char *const argv[], const char *const envp[]);
+int proc_create_user(proc_t *parent, const char *path, const char *const argv[],
+                     const char *const envp[], proc_t **out_proc);
 
 void proc_destroy(proc_t *proc);
 

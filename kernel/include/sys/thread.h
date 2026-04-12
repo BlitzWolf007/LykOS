@@ -41,9 +41,12 @@ struct thread
     size_t ref_count;
 };
 
-int thread_create(proc_t *proc, uintptr_t entry, size_t stack_size,
-                  const char *const argv[], const char *const envp[],
-                  thread_t **out_thread);
+int thread_create_kernel(vm_addrspace_t *as, uintptr_t entry, size_t stack_size,
+                         thread_t **out_thread);
+
+int thread_create_user(vm_addrspace_t *as, uintptr_t entry, size_t stack_size,
+                       const char *const argv[], const char *const envp[],
+                       thread_t **out_thread);
 
 void thread_destroy(thread_t *thread);
 
