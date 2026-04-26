@@ -7,7 +7,8 @@
 #include "mod/ksym.h"
 #include "mod/module.h"
 #include "panic.h"
-#include "sys/init.h"
+#include "sys/elf.h"
+#include "sys/proc.h"
 #include "sys/sched.h"
 #include "sys/smp.h"
 #include "uapi/errno.h"
@@ -71,40 +72,13 @@ static void load_boot_modules()
 
 static void load_init_proc()
 {
-    vnode_t *init_elf_file;
-    if (vfs_lookup("/boot/init", &init_elf_file) != EOK
-    ||  init_elf_file->type != VREG)
-        panic("Init process not found!");
+    const char *argv[] = { "test", NULL };
+    const char *envp[] = { NULL };
 
-    proc_t *init_proc = init_load(init_elf_file);
-    if (init_proc)
-        sched_enqueue(LIST_GET_CONTAINER(init_proc->threads.head, thread_t, proc_thread_list_node));
-    else
-        panic("Failed to load init process!");
-
-    vnode_t *server_elf_file;
-    if (vfs_lookup("/boot/server", &server_elf_file) != EOK
-    ||  server_elf_file->type != VREG)
-        panic("Server process not found!");
-
-    proc_t *server_proc = init_load(server_elf_file);
-    if (server_proc)
-        sched_enqueue(LIST_GET_CONTAINER(server_proc->threads.head, thread_t, proc_thread_list_node));
-    else
-        panic("Failed to load server process!");
-
-    vnode_t *client_elf_file;
-    if (vfs_lookup("/boot/client", &client_elf_file) != EOK
-    ||  client_elf_file->type != VREG)
-        panic("Client process not found!");
-
-    proc_t *client_proc = init_load(client_elf_file);
-    if (client_proc)
-        sched_enqueue(LIST_GET_CONTAINER(client_proc->threads.head, thread_t, proc_thread_list_node));
-    else
-        panic("Failed to load client process!");
+    proc_t *init_proc;
+    if (proc_create_user(NULL, "/boot/init", argv, envp, &init_proc) != EOK)
+        panic("");
 }
-
 
 void kernel_main()
 {

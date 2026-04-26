@@ -148,7 +148,7 @@ int unix_accept(socket_t *server, const struct sockaddr *addr, socklen_t addr_le
         if (nonblock)
             return EAGAIN;
 
-        sched_yield(THREAD_STATE_READY);
+        sched_yield(THREAD_STATUS_READY);
     }
 
     socket_t *new;
@@ -215,7 +215,7 @@ int unix_connect(socket_t *client, const struct sockaddr *addr)
     list_append(&server->pending, &client_unix->pending_node);
 
     while (client_unix->state == UNIX_STATE_CONNECTING)
-        sched_yield(THREAD_STATE_READY);
+        sched_yield(THREAD_STATUS_READY);
 
     return (client_unix->state == UNIX_STATE_CONNECTED) ? EOK : ECONNREFUSED;
 }

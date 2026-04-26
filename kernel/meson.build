@@ -33,7 +33,7 @@ c_flags = [
     # Optimization
     '-flto',
     '-ffat-lto-objects',
-    '-O2',
+    '-O0',
     '-g',
     # Features
     '-DPRINTF_DISABLE_SUPPORT_FLOAT',

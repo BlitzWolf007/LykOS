@@ -11,6 +11,7 @@
 #include "mm/mm.h"
 #include "mm/pm.h"
 #include "sys/sched.h"
+#include "uapi/errno.h"
 #include "utils/math.h"
 
 typedef struct
@@ -66,29 +67,42 @@ extern void __x86_64_thread_userspace_fork_entry();
 
 extern __attribute__((naked)) void __thread_context_switch(arch_thread_context_t *new, arch_thread_context_t *old);
 
-void arch_thread_context_init(arch_thread_context_t *context, vm_addrspace_t *as, bool user, uintptr_t entry)
+int arch_thread_context_init(arch_thread_context_t *context, vm_addrspace_t *as,
+                             bool user, uintptr_t entry, size_t stack_size,
+                             const char *const argv[],
+                             const char *const envp[])
 {
+    int err = EOK;
+
     context->self = context;
     context->fs = context->gs = 0;
 
+    page_t *page = pm_alloc(0);
+    if (!page)
+    {
+        err = ENOMEM;
+        goto fail;
+    }
+    context->kernel_stack = page->addr + HHDM + ARCH_PAGE_GRAN;
+
     if (user)
     {
-        char *argv[] = { "test", NULL };
-        char *envp[] = { NULL };
-
-        context->kernel_stack = pm_alloc(0)->addr + HHDM + ARCH_PAGE_GRAN;
         context->rsp = (context->kernel_stack - sizeof(arch_thread_init_stack_user_t)) & (~0xF); // align as 16
+
+        uint64_t user_stack = 0;
+        err = x86_64_abi_stack_setup(as, stack_size, argv, envp, &user_stack);
+        if (err != EOK)
+            goto fail;
 
         arch_thread_init_stack_user_t *init_stack = (arch_thread_init_stack_user_t *)context->rsp;
         *init_stack = (arch_thread_init_stack_user_t) {
             .userspace_init = __x86_64_thread_userspace_init,
             .entry = entry,
-            .user_stack = x86_64_abi_stack_setup(as, ARCH_PAGE_GRAN * 8, argv, envp)
+            .user_stack = user_stack
         };
     }
     else
     {
-        context->kernel_stack = pm_alloc(0)->addr + HHDM + ARCH_PAGE_GRAN;
         context->rsp = context->kernel_stack - sizeof(arch_thread_init_stack_kernel_t);
         memset((void *)context->rsp, 0, sizeof(arch_thread_init_stack_kernel_t));
         ((arch_thread_init_stack_kernel_t *)context->rsp)->entry = entry;
@@ -97,6 +111,12 @@ void arch_thread_context_init(arch_thread_context_t *context, vm_addrspace_t *as
     uint8_t order = pm_pagecount_to_order(CEIL(x86_64_fpu_area_size, ARCH_PAGE_GRAN) / ARCH_PAGE_GRAN);
     context->fpu_area = (void *)(pm_alloc(order)->addr + HHDM);
     memset(context->fpu_area, 0, x86_64_fpu_area_size);
+
+    return EOK;
+
+fail:
+    if (page) pm_free(page);
+    return err;
 }
 
 typedef struct

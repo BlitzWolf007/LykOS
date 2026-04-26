@@ -7,13 +7,15 @@
 
 #define SOCKET_PATH "/tmp/af_unix_test.sock"
 
-int main() {
+int main()
+{
     int fd;
     struct sockaddr_un addr;
     char buf[128];
 
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) {
+    if (fd < 0)
+    {
         puts("socket");
         exit(1);
     }
@@ -22,7 +24,8 @@ int main() {
     addr.sun_family = AF_UNIX;
     strcpy(addr.sun_path, SOCKET_PATH);
 
-    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+    {
         puts("connect");
         exit(1);
     }

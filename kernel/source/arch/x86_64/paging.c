@@ -307,7 +307,15 @@ static void delete_level(pte_t *level, int depth)
 
 void arch_paging_map_destroy(arch_paging_map_t *map)
 {
-    delete_level(map->pml4, 4);
+    for (int i = 0; i < 256; i++)
+    {
+        if (!(map->pml4[i] & PTE_PRESENT))
+            continue;
+
+        delete_level((pte_t *)(PTE_ADDR_MASK(map->pml4[i]) + HHDM), 3);
+    }
+
+    pm_free(pm_phys_to_page((uintptr_t)map->pml4 - HHDM));
     heap_free(map);
 }
 

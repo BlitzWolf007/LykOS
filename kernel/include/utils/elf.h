@@ -175,3 +175,7 @@ Elf64_Phdr;
 #define PT_INTERP  3
 #define PT_NOTE    4
 #define PT_TLS     7
+
+#define PF_X 0x1
+#define PF_W 0x2
+#define PF_R 0x4

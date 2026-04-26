@@ -18,7 +18,10 @@ typedef struct arch_thread_context
 __attribute__((packed))
 arch_thread_context_t;
 
-void arch_thread_context_init(arch_thread_context_t *context, vm_addrspace_t *as, bool user, uintptr_t entry);
+int arch_thread_context_init(arch_thread_context_t *context, vm_addrspace_t *as,
+                             bool user, uintptr_t entry, size_t stack_size,
+                             const char *const argv[],
+                             const char *const envp[]);
 
 bool arch_thread_context_fork(arch_thread_context_t *dest, arch_thread_context_t *src);
 

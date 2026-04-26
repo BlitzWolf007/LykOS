@@ -2,6 +2,7 @@
 
 #include "mm/vm.h"
 #include "utils/list.h"
+#include "utils/ref.h"
 #include "sys/fd.h"
 #include "sync/spinlock.h"
 
@@ -15,15 +16,15 @@ typedef struct thread thread_t;
 
 typedef enum
 {
-    PROC_STATE_NEW,
-    PROC_STATE_TERMINATED,
+    PROC_STATUS_NEW,
+    PROC_STATUS_TERMINATED,
 }
 proc_status_t;
 
 typedef struct proc
 {
     uint32_t pid;
-    uint32_t ppid;
+    struct proc *parent;
     char *name;
     bool user;
 
@@ -35,8 +36,8 @@ typedef struct proc
     char *cwd;
 
     list_node_t proc_list_node;
+    ref_t refcount;
     spinlock_t slock;
-    size_t ref_count;
 }
 proc_t;
 
@@ -44,8 +45,15 @@ proc_t;
  * Create, destroy, and fork
  */
 
-proc_t *proc_create(const char *name, const char *cwd, bool user);
+int proc_create_kernel(const char *name, proc_t **out_proc);
+
+int proc_create_user(proc_t *parent, const char *path, const char *const argv[],
+                     const char *const envp[], proc_t **out_proc);
 
 void proc_destroy(proc_t *proc);
+
+int proc_execve(proc_t *proc, const char *path,
+                const char *const argv[],
+                const char *const envp[]);
 
 proc_t *proc_fork(proc_t *proc, thread_t *calling_thread);

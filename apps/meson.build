@@ -1,33 +1,28 @@
 project(
     'apps',
-    ['c'],
+    'c',
     version: '0.1',
     meson_version: '>=0.64.0',
+    default_options: [
+        'c_std=c23',
+        'warning_level=3',
+        'buildtype=debug',
+    ],
 )
 
-executable(
-    'init',
-    'init.c',
-    link_args: ['-static', '-no-pie', '-O0', '-g'],
-    pie: false,
-    install: true,
-    install_dir: 'bin',
-)
+app_install_dir = 'bin'
+test_install_dir = 'tests'
 
-executable(
-    'client',
-    'client.c',
-    link_args: ['-static', '-no-pie', '-O0', '-g'],
-    pie: false,
-    install: true,
-    install_dir: 'bin',
-)
+common_c_args = [
+    '-O0',
+    '-g',
+]
 
-executable(
-    'server',
-    'server.c',
-    link_args: ['-static', '-no-pie', '-O0', '-g'],
-    pie: false,
-    install: true,
-    install_dir: 'bin',
-)
+common_link_args = [
+    '-static',
+    '-no-pie',
+]
+
+subdir('console')
+subdir('init')
+# subdir('tests')
