@@ -154,7 +154,7 @@ int arch_paging_unmap_page(arch_paging_map_t *map, uintptr_t vaddr)
 
     tables[level][leaf_idx] = 0;
     // Ascend
-    while (level <= 3)
+    while (level < 3)
     {
         if (!pt_children_dec(tables[level]))
             break;

@@ -19,7 +19,6 @@ int x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size,
         NULL, 0,
         &stack_base
     );
-    log(LOG_WARN, "sb %p", stack_base);
     if (err != EOK)
         return err;
 
@@ -91,6 +90,5 @@ int x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size,
     vm_copy_to_user(as, (uintptr_t)sp, &argc, sizeof(uintptr_t));
 
     *out_sp = sp;
-    log(LOG_WARN, "sp %p", sp);
     return EOK;
 }

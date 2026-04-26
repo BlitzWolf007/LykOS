@@ -5,6 +5,7 @@
 # Editors
 .clangd
 .vscode
+.zed
 
 # Qemu
 qemu
