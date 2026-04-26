@@ -53,6 +53,15 @@ int x86_64_abi_stack_setup(vm_addrspace_t *as, size_t stack_size,
     }
     sp &= ~0xF;
 
+    // Push auxv
+    sp -= sizeof(uintptr_t);
+    uintptr_t aux_val = 0;
+    vm_copy_to_user(as, sp, &aux_val, sizeof(uintptr_t));
+
+    sp -= sizeof(uintptr_t);
+    uintptr_t aux_type = 0;
+    vm_copy_to_user(as, sp, &aux_type, sizeof(uintptr_t));
+
     // Push 0
     sp -= sizeof(uint64_t);
     vm_zero_out_user(as, (uintptr_t)sp, sizeof(uint64_t));

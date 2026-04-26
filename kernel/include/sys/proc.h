@@ -16,8 +16,8 @@ typedef struct thread thread_t;
 
 typedef enum
 {
-    PROC_STATE_NEW,
-    PROC_STATE_TERMINATED,
+    PROC_STATUS_NEW,
+    PROC_STATUS_TERMINATED,
 }
 proc_status_t;
 
@@ -51,5 +51,9 @@ int proc_create_user(proc_t *parent, const char *path, const char *const argv[],
                      const char *const envp[], proc_t **out_proc);
 
 void proc_destroy(proc_t *proc);
+
+int proc_execve(proc_t *proc, const char *path,
+                const char *const argv[],
+                const char *const envp[]);
 
 proc_t *proc_fork(proc_t *proc, thread_t *calling_thread);

@@ -60,6 +60,7 @@ int vm_map(vm_addrspace_t *as, uintptr_t vaddr, size_t length,
            vm_object_t *obj, size_t offset,
            uintptr_t *out);
 int vm_unmap(vm_addrspace_t *as, uintptr_t vaddr, size_t length);
+int vm_protect(vm_addrspace_t *as, uintptr_t vaddr, size_t length, vm_protection_t prot);
 
 // Memory allocation
 

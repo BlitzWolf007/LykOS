@@ -1,4 +1,4 @@
-#include "syscall.h"
+#include "sys/syscall.h"
 
 #include "sys/sched.h"
 
@@ -10,6 +10,7 @@ const void* syscall_table[] = {
     (void *)syscall_write,
     (void *)syscall_seek,
     (void *)syscall_mmap,
+    (void *)syscall_execve,
     (void *)syscall_exit,
     (void *)syscall_fork,
     (void *)syscall_get_cwd,

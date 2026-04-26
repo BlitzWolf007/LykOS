@@ -13,6 +13,7 @@
 #include "panic.h"
 #include "sync/spinlock.h"
 #include "uapi/errno.h"
+#include "utils/container_of.h"
 #include "utils/list.h"
 #include "utils/math.h"
 #include <stdint.h>
@@ -355,8 +356,8 @@ size_t vm_copy_to_user(vm_addrspace_t *dest_as, uintptr_t dest, const void *src,
         uintptr_t phys;
         if(!arch_paging_vaddr_to_paddr(dest_as->page_map, dest + i, &phys))
         {
-            // TODO: Handle this
-            panic("Not mapped!");
+            vm_page_fault(dest_as, dest + i, VM_FAULT_WRITE);
+            arch_paging_vaddr_to_paddr(dest_as->page_map, dest + i, &phys);
         }
 
         size_t len = MIN(count - i, ARCH_PAGE_GRAN - offset);
@@ -377,8 +378,9 @@ size_t vm_copy_from_user(vm_addrspace_t *src_as, void *dest, uintptr_t src, size
         uintptr_t phys;
         if (!arch_paging_vaddr_to_paddr(src_as->page_map, src + i, &phys))
         {
-            // TODO: Handle this
-            panic("Not mapped!");
+            // TODO: make this mess safer
+            vm_page_fault(src_as, src + i, VM_FAULT_READ);
+            arch_paging_vaddr_to_paddr(src_as->page_map, src + i, &phys);
         }
 
         size_t len = MIN(count - i, ARCH_PAGE_GRAN - offset);
@@ -399,8 +401,8 @@ size_t vm_zero_out_user(vm_addrspace_t *dest_as, uintptr_t dest, size_t count)
         uintptr_t phys;
         if(!arch_paging_vaddr_to_paddr(dest_as->page_map, dest + i, &phys))
         {
-            // TODO: Handle this
-            panic("Not mapped!");
+            vm_page_fault(dest_as, dest + i, VM_FAULT_WRITE);
+            arch_paging_vaddr_to_paddr(dest_as->page_map, dest + i, &phys);
         }
 
         size_t len = MIN(count - i, ARCH_PAGE_GRAN - offset);
@@ -429,13 +431,11 @@ vm_addrspace_t *vm_addrspace_create()
 
 void vm_addrspace_destroy(vm_addrspace_t *as)
 {
-    vm_segment_t *seg = LIST_GET_CONTAINER(&as->segments, vm_segment_t, list_node);
-    while (seg)
+    while (as->segments.length)
     {
-        vm_segment_t *next = LIST_GET_CONTAINER(seg->list_node.next, vm_segment_t, list_node);
-        vm_unmap(as, seg->start, seg->length);
+        vm_segment_t *seg = container_of(list_pop_head(&as->segments), vm_segment_t, list_node);
+        //vm_unmap(as, seg->start, seg->length);
         heap_free(seg);
-        seg = next;
     }
 
     arch_paging_map_destroy(as->page_map);

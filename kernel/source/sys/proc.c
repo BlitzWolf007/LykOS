@@ -50,7 +50,7 @@ int proc_create_kernel(const char *name, proc_t **out_proc)
         goto fail;
     }
     proc->user = false;
-    proc->status = PROC_STATE_NEW;
+    proc->status = PROC_STATUS_NEW;
     proc->as = vm_kernel_as;
     proc->threads = LIST_INIT;
     proc->fd_table = NULL;
@@ -99,7 +99,7 @@ int proc_create_user(proc_t *parent, const char *path, const char *const argv[],
     proc->parent = parent;
     proc->name = NULL;
     proc->user = true;
-    proc->status = PROC_STATE_NEW;
+    proc->status = PROC_STATUS_NEW;
     proc->as = vm_addrspace_create();
     if (!proc->as)
     {
@@ -215,7 +215,7 @@ int proc_execve(proc_t *proc, const char *path,
     }
 
     thread_t *initial_thread;
-    err = thread_create_user(new_as, (uintptr_t)entry, 8192, argv, envp, &initial_thread);
+    err = thread_create_user(new_as, (uintptr_t)entry, 2 * MIB, argv, envp, &initial_thread);
     if (err != EOK)
     {
         vm_addrspace_destroy(new_as);
@@ -223,19 +223,21 @@ int proc_execve(proc_t *proc, const char *path,
     }
     initial_thread->owner = proc;
 
-    while (!list_is_empty(&proc->threads))
+    FOREACH(n, proc->threads)
     {
-        list_node_t *n = list_pop_head(&proc->threads);
         thread_t *t = container_of(n, thread_t, proc_thread_list_node);
-        thread_destroy(t);
+        if (t != sched_get_curr_thread())
+            t->status = THREAD_STATUS_TERMINATED;
     }
+    vm_addrspace_load(new_as);
     vm_addrspace_destroy(proc->as);
 
     proc->as = new_as;
     list_append(&proc->threads, &initial_thread->proc_thread_list_node);
     sched_enqueue(initial_thread);
 
-    return EOK;
+    sched_yield(THREAD_STATUS_TERMINATED);
+    unreachable();
 }
 
 proc_t *proc_fork(proc_t *proc, thread_t *calling_thread)
@@ -247,12 +249,15 @@ proc_t *proc_fork(proc_t *proc, thread_t *calling_thread)
     if (!new_proc)
         goto fail;
     new_proc->pid = new_pid();
-    new_proc->name = strdup(proc->name);
-    if (!new_proc->name)
-        goto fail;
+    if (proc->name)
+    {
+        new_proc->name = strdup(proc->name);
+        if (!new_proc->name)
+            goto fail;
+    }
     new_proc->parent = proc->parent;
     new_proc->user= proc->user;
-    new_proc->status = PROC_STATE_NEW;
+    new_proc->status = PROC_STATUS_NEW;
     new_proc->as = vm_addrspace_clone(proc->as);
     if (!new_proc->as)
         goto fail;

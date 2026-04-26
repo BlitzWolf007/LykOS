@@ -42,7 +42,7 @@ static thread_t *pick_next_thread()
             if (t->sleep_until < arch_timer_get_uptime_ns())
             {
                 list_remove(&ready_queues[lvl], n);
-                t->status = THREAD_STATE_RUNNING;
+                t->status = THREAD_STATUS_RUNNING;
                 return t;
             }
         }
@@ -60,7 +60,7 @@ void sched_drop(thread_t *t)
     if (t == t->assigned_cpu->idle_thread)
         return;
 
-    if (t->status != THREAD_STATE_READY)
+    if (t->status != THREAD_STATUS_READY)
         return;
 
     t->assigned_cpu = NULL;
@@ -87,7 +87,7 @@ void sched_enqueue(thread_t *t)
     spinlock_acquire(&slock);
     t->last_ran = 0;
     t->sleep_until = 0;
-    t->status = THREAD_STATE_READY;
+    t->status = THREAD_STATUS_READY;
     list_append(&ready_queues[0], &t->sched_thread_list_node);
     spinlock_release(&slock);
 }
@@ -101,7 +101,7 @@ void sched_preempt()
     old->last_ran = arch_timer_get_uptime_ns();
     if (old->priority < MLFQ_LEVELS - 1)
         old->priority++;
-    old->status = THREAD_STATE_READY;
+    old->status = THREAD_STATUS_READY;
     thread_t *new = pick_next_thread();
     new->assigned_cpu = old->assigned_cpu;
     spinlock_release(&slock);

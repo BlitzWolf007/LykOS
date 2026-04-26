@@ -78,12 +78,6 @@ static void load_init_proc()
     proc_t *init_proc;
     if (proc_create_user(NULL, "/boot/init", argv, envp, &init_proc) != EOK)
         panic("");
-    proc_t *server_proc;
-    if (proc_create_user(NULL, "/boot/server", argv, envp, &server_proc) != EOK)
-        panic("");
-    proc_t *client_proc;
-    if (proc_create_user(NULL, "/boot/client", argv, envp, &client_proc) != EOK)
-        panic("");
 }
 
 void kernel_main()

@@ -33,7 +33,7 @@ int thread_create_kernel(vm_addrspace_t *as, uintptr_t entry, size_t stack_size,
     thread->tid = new_tid();
     thread->owner = NULL;
     thread->priority = 0;
-    thread->status = THREAD_STATE_NEW;
+    thread->status = THREAD_STATUS_NEW;
     thread->last_ran = 0;
     thread->sleep_until = 0;
     thread->assigned_cpu = NULL;
@@ -70,7 +70,7 @@ int thread_create_user(vm_addrspace_t *as, uintptr_t entry, size_t stack_size,
     thread->tid = new_tid();
     thread->owner = NULL; // To be set by caller.
     thread->priority = 0;
-    thread->status = THREAD_STATE_NEW;
+    thread->status = THREAD_STATUS_NEW;
     thread->last_ran = 0;
     thread->sleep_until = 0;
     thread->assigned_cpu = NULL;
@@ -93,7 +93,7 @@ int thread_create_user(vm_addrspace_t *as, uintptr_t entry, size_t stack_size,
 
 void thread_destroy(thread_t *thread)
 {
-    ASSERT(thread && thread->status == THREAD_STATE_TERMINATED);
+    ASSERT(thread && thread->status == THREAD_STATUS_TERMINATED);
 }
 
 thread_t *thread_duplicate(thread_t *thread)
@@ -109,7 +109,7 @@ thread_t *thread_duplicate(thread_t *thread)
     new_thread->owner = NULL; // To be set by caller.
 
     new_thread->priority = 0;
-    new_thread->status = THREAD_STATE_NEW;
+    new_thread->status = THREAD_STATUS_NEW;
     new_thread->last_ran = 0;
     new_thread->sleep_until = 0;
     new_thread->assigned_cpu = NULL;
