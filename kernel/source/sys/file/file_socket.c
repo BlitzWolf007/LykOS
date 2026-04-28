@@ -143,5 +143,6 @@ const file_ops_t file_socket_ops = {
     .chmod    = file_socket_chmod,
     .chown    = file_socket_chown,
     .seek     = file_socket_seek,
-    .close    = file_socket_close,
+    .mmap     = NULL,
+    .close    = file_socket_close
 };

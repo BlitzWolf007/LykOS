@@ -56,16 +56,9 @@ static int write(vnode_t *vn, const void *buffer, uint64_t offset, uint64_t coun
     return EOK;
 }
 
-static int mmap(vnode_t *vn, vm_addrspace_t *as, uintptr_t vaddr, size_t length,
-            int prot, int flags, uint64_t offset)
-{
-    return ENOTSUP;
-}
-
 static vnode_ops_t file_ops = {
     .read = read,
-    .write = write,
-    .mmap = mmap
+    .write = write
 };
 
 static device_t fb_device_t = {

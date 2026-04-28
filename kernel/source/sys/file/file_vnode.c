@@ -1,16 +1,20 @@
+#include "arch/types.h"
 #include "fs/vfs.h"
+#include "mm/mm.h"
+#include "mm/vm.h"
 #include "sys/file.h"
 #include "sys/poll.h"
 #include "sys/uio.h"
 #include "sys/unistd.h"
 #include "uapi/errno.h"
+#include <stdint.h>
 
 static int file_vnode_read(file_t *fp, uio_op_t *uio,
                            [[maybe_unused]] int flags,
                            [[maybe_unused]] thread_t *td)
 {
     vnode_t *vn = fp->backend;
-    int error = 0;
+    int error = EOK;
 
     for (size_t i = 0; i < uio->buf_cnt && uio->rem_bytes > 0; i++)
     {
@@ -25,7 +29,7 @@ static int file_vnode_read(file_t *fp, uio_op_t *uio,
 
         uint64_t done = 0;
 
-        error = vfs_read(
+        error = vnode_read(
             vn,
             b->base,
             fp->offset,
@@ -51,7 +55,7 @@ static int file_vnode_write(file_t *fp, uio_op_t *uio,
                             [[maybe_unused]] thread_t *td)
 {
     vnode_t *vn = fp->backend;
-    int error = 0;
+    int error = EOK;
 
     uint64_t offset = fp->offset;
 
@@ -71,7 +75,7 @@ static int file_vnode_write(file_t *fp, uio_op_t *uio,
 
         uint64_t done = 0;
 
-        error = vfs_write(
+        error = vnode_write(
             vn,
             b->base,
             offset,
@@ -91,7 +95,7 @@ static int file_vnode_write(file_t *fp, uio_op_t *uio,
 
     fp->offset = offset;
 
-    return 0;
+    return EOK;
 }
 
 static int file_vnode_ioctl(file_t *fp, int cmd, void *data, [[maybe_unused]] thread_t *td)
@@ -137,7 +141,8 @@ static int file_vnode_seek(file_t *fp, off_t offset, int whence)
     vnode_t *vn = fp->backend;
     off_t newoff;
 
-    switch (whence) {
+    switch (whence)
+    {
     case SEEK_SET:
         newoff = offset;
         break;
@@ -155,14 +160,36 @@ static int file_vnode_seek(file_t *fp, off_t offset, int whence)
         return EINVAL;
 
     fp->offset = newoff;
-    return 0;
+    return EOK;
+}
+
+static int file_vnode_mmap(file_t *fp, vm_addrspace_t *as, uintptr_t vaddr,
+                           size_t length, int prot, int flags, off_t offset,
+                           [[maybe_unused]] thread_t *td, uintptr_t *out_vaddr)
+{
+    vnode_t *vn = fp->backend;
+
+    if (length == 0 || offset < 0)
+        return EINVAL;
+    if ((uintptr_t)offset & (ARCH_PAGE_GRAN - 1))
+        return EINVAL;
+    if ((prot & VM_PROTECTION_WRITE) && !(fp->flags & O_WRONLY) && !(fp->flags & O_RDWR))
+        return EACCES;
+    if ((prot & VM_PROTECTION_READ) && !(fp->flags & O_RDONLY) && !(fp->flags & O_RDWR))
+        return EACCES;
+
+    int err = vnode_mmap(vn, as, vaddr, length, prot, flags, offset, out_vaddr);
+    if (err != EOK)
+        return err;
+
+    return EOK;
 }
 
 static int file_vnode_close(file_t *fp, [[maybe_unused]] thread_t *td)
 {
     vnode_t *vn = fp->backend;
+    vnode_unref(vn);
 
-    vnode_drop(vn);
     return EOK;
 }
 
@@ -175,5 +202,6 @@ const file_ops_t file_vnode_ops = {
     .chmod    = file_vnode_chmod,
     .chown    = file_vnode_chown,
     .seek     = file_vnode_seek,
+    .mmap     = file_vnode_mmap,
     .close    = file_vnode_close,
 };

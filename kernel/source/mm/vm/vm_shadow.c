@@ -5,7 +5,7 @@
 #include "mm/mm.h"
 #include "mm/pm.h"
 
-static bool shadow_get_page(vm_object_t *obj, size_t offset, uint32_t fault_flags, page_t **page_out)
+static bool shadow_get_page(vm_object_t *obj, size_t offset, vm_fault_type_t fault_type, page_t **page_out)
 {
     spinlock_acquire(&obj->slock);
 
@@ -31,7 +31,7 @@ static bool shadow_get_page(vm_object_t *obj, size_t offset, uint32_t fault_flag
         return false;
 
     // If the proc doesn't want to modify return the parent's page (for read-only usage).
-    if (fault_flags != VM_FAULT_WRITE)
+    if (fault_type != VM_FAULT_WRITE)
     {
         *page_out = parent_page;
         return true;

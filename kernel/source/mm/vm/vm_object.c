@@ -7,11 +7,13 @@
 extern vm_object_ops_t anon_ops;
 extern vm_object_ops_t phys_ops;
 extern vm_object_ops_t shadow_ops;
+extern vm_object_ops_t vnode_ops;
 
 static vm_object_ops_t *ops_table[] = {
     [VM_OBJ_ANON]   = &anon_ops,
     [VM_OBJ_PHYS]   = &phys_ops,
-    [VM_OBJ_SHADOW] = &shadow_ops
+    [VM_OBJ_SHADOW] = &shadow_ops,
+    [VM_OBJ_VNODE]  = &vnode_ops
 };
 
 /*

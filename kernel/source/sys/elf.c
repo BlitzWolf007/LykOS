@@ -67,7 +67,7 @@ static int elf_load_ph(vm_addrspace_t *as, vnode_t *file, Elf64_Phdr *ph)
             return ENOEXEC;
 
         uint64_t count;
-        if (vfs_read(file, buf, off, to_copy, &count) != EOK
+        if (vnode_read(file, buf, off, to_copy, &count) != EOK
         ||  count != to_copy)
             return ENOEXEC;
         vm_copy_to_user(as, ph->p_vaddr + read_bytes, buf, to_copy);
@@ -95,7 +95,7 @@ int elf_load(vm_addrspace_t *as, const char *path, void **out_entry, char **out_
         return err;
 
     Elf64_Ehdr ehdr;
-    err = vfs_read(file, &ehdr, 0, sizeof(Elf64_Ehdr), &count);
+    err = vnode_read(file, &ehdr, 0, sizeof(Elf64_Ehdr), &count);
     if (err != EOK || count != sizeof(Elf64_Ehdr))
         return err;
 
@@ -114,7 +114,7 @@ int elf_load(vm_addrspace_t *as, const char *path, void **out_entry, char **out_
     Elf64_Phdr *ph_table = vm_alloc(ehdr.e_phentsize * ehdr.e_phnum);
     if (!ph_table)
         return ENOMEM;
-    err = vfs_read(file, ph_table, ehdr.e_phoff, ehdr.e_phentsize * ehdr.e_phnum, &count);
+    err = vnode_read(file, ph_table, ehdr.e_phoff, ehdr.e_phentsize * ehdr.e_phnum, &count);
     if (err != EOK || count != ehdr.e_phentsize * ehdr.e_phnum)
         return err;
 

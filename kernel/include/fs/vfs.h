@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 typedef struct vm_addrspace vm_addrspace_t;
+typedef struct vm_object vm_object_t;
 
 typedef struct vnode vnode_t;
 typedef struct vnode_ops vnode_ops_t;
@@ -68,7 +69,7 @@ struct vnode
     uint64_t size;
 
     // Page cache
-    xarray_t pages;
+    xarray_t cached_pages;
 
     // FS-specific ops and data
     vnode_ops_t *ops;
@@ -102,28 +103,22 @@ struct vnode_ops
     int (*readdir)(vnode_t *vn, vfs_dirent_t **out_entries, size_t *out_count);
     // Misc
     int (*ioctl)(vnode_t *vn, uint64_t cmd, void *args);
-    int (*mmap) (vnode_t *vn, vm_addrspace_t *as, uintptr_t vaddr, size_t length,
-                 int prot, int flags, uint64_t offset);
 };
 
-void vnode_hold(vnode_t *vn);
-void vnode_drop(vnode_t *vn);
+void vnode_ref(vnode_t *vn);
+void vnode_unref(vnode_t *vn);
 
 /*
  * Veneer layer.
 */
 
-// Read/Write
-[[nodiscard]] int vfs_read(vnode_t *vn, void *buffer, uint64_t offset, uint64_t count, uint64_t *out_bytes_read);
-[[nodiscard]] int vfs_write(vnode_t *vn, void *buffer, uint64_t offset, uint64_t count, uint64_t *out_bytes_written);
-// Directory
 [[nodiscard]] int vfs_lookup(const char *path, vnode_t **out_vn);
 [[nodiscard]] int vfs_create(const char *path, vnode_type_t type, vnode_t **out_vn);
 [[nodiscard]] int vfs_remove(const char *path);
-// Misc
-[[nodiscard]] int vfs_ioctl(vnode_t *vn, uint64_t cmd, void *args);
-[[nodiscard]] int vfs_mmap(vnode_t *vn, vm_addrspace_t *as, uintptr_t vaddr,
-                           size_t length, int prot, int flags, uint64_t offset);
+
+[[nodiscard]] int vnode_read(vnode_t *vn, void *buffer, uint64_t offset, uint64_t count, uint64_t *out_bytes_read);
+[[nodiscard]] int vnode_write(vnode_t *vn, void *buffer, uint64_t offset, uint64_t count, uint64_t *out_bytes_written);
+[[nodiscard]] int vnode_ioctl(vnode_t *vn, uint64_t cmd, void *args);
 
 /*
  * Initialization

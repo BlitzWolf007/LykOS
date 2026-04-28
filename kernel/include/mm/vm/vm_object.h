@@ -23,9 +23,9 @@ typedef struct vm_object vm_object_t;
 enum vm_object_type
 {
     VM_OBJ_ANON,
-    VM_OBJ_VNODE,
     VM_OBJ_PHYS,
     VM_OBJ_SHADOW,
+    VM_OBJ_VNODE
 };
 
 struct vm_object_ops

@@ -39,7 +39,7 @@ int module_load(vnode_t *file, module_t **out)
     uint64_t count;
 
     Elf64_Ehdr ehdr;
-    if (vfs_read(file, &ehdr, 0, sizeof(Elf64_Ehdr), &count) != EOK
+    if (vnode_read(file, &ehdr, 0, sizeof(Elf64_Ehdr), &count) != EOK
     ||  count != sizeof(Elf64_Ehdr))
     {
         log(LOG_ERROR, "Could not read file header!");
@@ -67,7 +67,7 @@ int module_load(vnode_t *file, module_t **out)
 
     for(int i = 0; i < ehdr.e_shnum; i++)
     {
-        if(vfs_read(file, &shdr[i], ehdr.e_shoff + (ehdr.e_shentsize * i), sizeof(Elf64_Shdr), &count) != EOK
+        if(vnode_read(file, &shdr[i], ehdr.e_shoff + (ehdr.e_shentsize * i), sizeof(Elf64_Shdr), &count) != EOK
         || count != sizeof(Elf64_Shdr))
         {
             log(LOG_ERROR, "Could not load section header list from file!");
@@ -90,7 +90,7 @@ int module_load(vnode_t *file, module_t **out)
                 NULL, 0,
                 &mem
             );
-            if (vfs_read(file, (void *)mem, section->sh_offset, section->sh_size, &count) != EOK
+            if (vnode_read(file, (void *)mem, section->sh_offset, section->sh_size, &count) != EOK
             ||  count != section->sh_size)
             {
                 log(LOG_ERROR, "Could not load section header from file!");
@@ -126,7 +126,7 @@ int module_load(vnode_t *file, module_t **out)
         return ENOEXEC;
     }
     CLEANUP void *symtab = heap_alloc(symtab_hdr->sh_size);
-    if (vfs_read(file, symtab, symtab_hdr->sh_offset, symtab_hdr->sh_size, &count) != EOK || count != symtab_hdr->sh_size)
+    if (vnode_read(file, symtab, symtab_hdr->sh_offset, symtab_hdr->sh_size, &count) != EOK || count != symtab_hdr->sh_size)
     {
         log(LOG_ERROR, "Could not load symbol table from file!");
         return ENOEXEC;
@@ -140,7 +140,7 @@ int module_load(vnode_t *file, module_t **out)
         return ENOEXEC;
     }
     CLEANUP char *strtab = heap_alloc(strtab_hdr->sh_size);
-    if(vfs_read(file, strtab, strtab_hdr->sh_offset, strtab_hdr->sh_size, &count) != EOK || count != strtab_hdr->sh_size)
+    if(vnode_read(file, strtab, strtab_hdr->sh_offset, strtab_hdr->sh_size, &count) != EOK || count != strtab_hdr->sh_size)
     {
         log(LOG_ERROR, "Could not load string table from file!");
         return ENOEXEC;
@@ -190,7 +190,7 @@ int module_load(vnode_t *file, module_t **out)
             continue;
 
         CLEANUP Elf64_Rela *rela_entries = heap_alloc(section->sh_size);
-        if (vfs_read(file, rela_entries, section->sh_offset, section->sh_size, &count) != EOK
+        if (vnode_read(file, rela_entries, section->sh_offset, section->sh_size, &count) != EOK
         ||  count != section->sh_size)
         {
             log(LOG_ERROR, "Could not load relocation entries from file!");

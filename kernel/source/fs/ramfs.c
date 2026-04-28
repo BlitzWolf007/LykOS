@@ -7,6 +7,7 @@
 #include "mm/heap.h"
 #include "mm/mm.h"
 #include "mm/pm.h"
+#include "mm/vm/vm_object.h"
 #include "uapi/errno.h"
 #include "utils/list.h"
 #include "utils/string.h"
@@ -14,6 +15,19 @@
 #include <stdint.h>
 
 #define INITIAL_PAGE_CAPACITY 1
+
+typedef struct ramfs_node
+{
+    vnode_t vn;
+    struct ramfs_node *parent;
+
+    list_t children;
+    xarray_t pages;
+    size_t page_count;
+
+    list_node_t list_node;
+}
+ramfs_node_t;
 
 // VFS API
 
@@ -46,7 +60,9 @@ static vnode_t *ramfs_get_root(vfs_t *self)
     return (vnode_t *)self->private_data;
 }
 
-// Node Operations
+/*
+ * Node Operations
+ */
 
 static int read(vnode_t *self, void *buf, uint64_t offset, uint64_t count, uint64_t *out)
 {
@@ -241,7 +257,9 @@ static int ioctl(vnode_t *vn, uint64_t cmd, void *arg)
     return ENOTSUP;
 }
 
-//
+/*
+ * Creation
+ */
 
 vfs_t *ramfs_create()
 {
@@ -256,6 +274,7 @@ vfs_t *ramfs_create()
             .mtime = now,
             .atime = now,
             .size = 0,
+            .cached_pages = XARRAY_INIT,
             .ops  = &ramfs_node_ops,
             .inode = &ramfs_root,
             .refcount = 1

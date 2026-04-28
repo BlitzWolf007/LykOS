@@ -4,4 +4,5 @@ c_files += files(
     'vm_object.c',
     'vm_phys.c',
     'vm_shadow.c',
+    'vm_vnode.c',
 )

@@ -32,7 +32,7 @@ sys_ret_t syscall_open(const char *path, int flags)
     file_t *file = file_create_vnode(vn, flags);
     if (!file)
     {
-        vnode_drop(vn);
+        vnode_unref(vn);
         return (sys_ret_t){0, ENOMEM};
     }
 
